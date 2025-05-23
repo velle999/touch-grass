@@ -7,12 +7,12 @@
     html, body {
       margin: 0; padding: 0; background: #87d887;
       width: 100vw; height: 100vh; overflow: hidden;
-      touch-action: none; /* Prevent browser gestures */
+      touch-action: none;
     }
     #grassField {
       display: block; margin: 0 auto;
       background: #71c271; border-bottom: 12px solid #529f54;
-      touch-action: none; /* Prevent scrolling on touch */
+      touch-action: none;
     }
     #ui {
       position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
@@ -38,6 +38,13 @@
       background: url('hand.png') no-repeat center/contain;
       user-select: none;
       touch-action: none;
+    }
+    .bird {
+      position: absolute; width: 48px; height: 32px; pointer-events: none; z-index: 7;
+      background: url('bird.png') no-repeat center/contain;
+      image-rendering: pixelated;
+      opacity: 0.9;
+      transition: opacity 0.2s;
     }
     #notification {
       position: absolute; top: 32%; left: 50%; transform: translateX(-50%);
@@ -76,6 +83,7 @@
   <div class="hand" id="hand"></div>
   <div id="notification"></div>
   <audio id="grassAudio" src="grass.mp3" preload="auto"></audio>
+  <audio id="birdsAudio" src="birds.mp3" preload="auto"></audio>
   <script>
     // --- State ---
     const canvas = document.getElementById('grassField');
@@ -86,23 +94,23 @@
     const sunlightBar = document.getElementById('sunlightBar');
     const notification = document.getElementById('notification');
     const grassAudio = document.getElementById('grassAudio');
+    const birdsAudio = document.getElementById('birdsAudio');
     let grassTouched = 0, lastSarcasm = -1;
 
-    // --- Grass PNG Tile ---
+    // --- Load grass image ---
     const grassImg = new Image();
     grassImg.src = 'grass.png';
-    grassImg.onload = () => draw();
 
-    // --- Grass Blades ---
-    const blades = [];
-    for(let i = 0; i < 220; ++i) {
-      blades.push({
-        x: Math.random() * canvas.width,
-        y: 390 + Math.random() * 95,
-        h: 35 + Math.random() * 44,
-        angle: (Math.random() - 0.5) * 0.7
-      });
-    }
+    // --- Grass Blades (positions and angles) ---
+const blades = [];
+for(let i = 0; i < 220; ++i) {
+  blades.push({
+    x: Math.random() * canvas.width,
+    y: 390 + Math.random() * 95,
+    h: 35 + Math.random() * 44,
+    angle: (Math.random() - 0.5) * 0.7
+  });
+}
 
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -112,7 +120,7 @@ function draw() {
   // --- Repeat the grass PNG, scaled down ---
   if (grassImg.complete && grassImg.naturalWidth > 0) {
     // CHOOSE THE SCALE: 0.25 = quarter size, 0.5 = half size, etc.
-    const scale = 0.33;
+    const scale = 0.15;
     const tileW = grassImg.width * scale;
     const tileH = grassImg.height * scale;
     for (let x = 0; x < canvas.width; x += tileW) {
@@ -137,10 +145,13 @@ function draw() {
   });
 }
 
+// Ensure to redraw when grassImg loads:
+grassImg.onload = draw;
     draw();
 
     function isOnGrass(x, y) {
-      return blades.some(b => Math.abs(x - b.x) < 12 && Math.abs(y - b.y) < 22);
+      // Uses blade centers
+      return blades.some(b => Math.abs(x - b.x) < 16 && Math.abs(y - b.y) < 36);
     }
 
     const sarcasmLines = [
@@ -191,7 +202,7 @@ function draw() {
       "New firmware update available: For your soul."
     ];
     function showNotification() {
-      if (notification.style.display === "block") return; // Don't stack
+      if (notification.style.display === "block") return;
       notification.textContent = fakeNotifs[Math.floor(Math.random() * fakeNotifs.length)] +
         "\n\n(Tap/click to dismiss and continue your digital wellness journey.)";
       notification.style.display = "block";
@@ -231,6 +242,41 @@ function draw() {
       }
     }
 
+    // --- Bird system ---
+    const birds = [];
+    function spawnBird() {
+      const birdEl = document.createElement('div');
+      birdEl.className = "bird";
+      const y = 20 + Math.random() * 80;
+      const speed = 1.5 + Math.random() * 1.3;
+      let leftToRight = Math.random() > 0.5;
+      birdEl.style.top = y + "px";
+      birdEl.style.left = leftToRight ? "-60px" : (window.innerWidth + 60) + "px";
+      birdEl.style.transform = leftToRight ? "scaleX(1)" : "scaleX(-1)";
+      document.body.appendChild(birdEl);
+      birds.push({el: birdEl, x: leftToRight ? -60 : window.innerWidth + 60, y, speed, leftToRight});
+      birdsAudio.currentTime = 0;
+      birdsAudio.play();
+    }
+    function animateBirds() {
+      for (let i = birds.length - 1; i >= 0; i--) {
+        let bird = birds[i];
+        if (bird.leftToRight) {
+          bird.x += bird.speed;
+        } else {
+          bird.x -= bird.speed;
+        }
+        bird.el.style.left = bird.x + "px";
+        if ((bird.leftToRight && bird.x > window.innerWidth + 70) ||
+            (!bird.leftToRight && bird.x < -70)) {
+          document.body.removeChild(bird.el);
+          birds.splice(i, 1);
+        }
+      }
+    }
+    setInterval(() => { if (Math.random() < 0.36) spawnBird(); }, 3400);
+    setInterval(animateBirds, 33);
+
     // --- Main pointer events ---
     function pointerDownHandler(e) {
       touching = true;
@@ -240,7 +286,6 @@ function draw() {
         grassAudio.play();
         isPetting = true;
       }
-      // Support multi-touch: use the first finger's location if available
       let x = e.clientX, y = e.clientY;
       if (e.touches && e.touches.length > 0) {
         x = e.touches[0].clientX; y = e.touches[0].clientY;
@@ -270,26 +315,22 @@ function draw() {
       e.preventDefault();
     }
 
-    // --- Event listeners: pointer events cover both mouse & touch ---
     canvas.addEventListener('pointerdown', pointerDownHandler);
     canvas.addEventListener('pointermove', pointerMoveHandler);
-    window.addEventListener('pointerup', pointerUpHandler); // Use window for robust touch end
+    window.addEventListener('pointerup', pointerUpHandler);
 
-    // --- Initial hand position in the center ---
     updateHand(window.innerWidth/2, window.innerHeight/2);
 
-    // --- Prevent context menu on long-press (mobile) ---
     canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-    // --- Make sure hand follows on move even if not touching ---
     canvas.addEventListener('pointermove', e => {
       updateHand(e.clientX, e.clientY);
     });
-
-    // --- Responsive scaling on orientation change ---
     window.addEventListener('resize', () => {
       updateHand(window.innerWidth/2, window.innerHeight/2);
     });
+
+    // Redraw grass if image loads late
+    grassImg.onload = draw;
   </script>
 </body>
 </html>
