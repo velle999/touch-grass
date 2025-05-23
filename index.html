@@ -88,6 +88,11 @@
     const grassAudio = document.getElementById('grassAudio');
     let grassTouched = 0, lastSarcasm = -1;
 
+    // --- Grass PNG Tile ---
+    const grassImg = new Image();
+    grassImg.src = 'grass.png';
+    grassImg.onload = () => draw();
+
     // --- Grass Blades ---
     const blades = [];
     for(let i = 0; i < 220; ++i) {
@@ -99,25 +104,39 @@
       });
     }
 
-    function draw() {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle = "#87d887";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      blades.forEach(b => {
-        ctx.save();
-        ctx.translate(b.x, b.y);
-        ctx.rotate(b.angle);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -b.h);
-        ctx.lineWidth = 3.3 + Math.random() * 1.6;
-        ctx.strokeStyle = "#53b545";
-        ctx.shadowColor = "#296b23";
-        ctx.shadowBlur = 6;
-        ctx.stroke();
-        ctx.restore();
-      });
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "#87d887";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // --- Repeat the grass PNG, scaled down ---
+  if (grassImg.complete && grassImg.naturalWidth > 0) {
+    // CHOOSE THE SCALE: 0.25 = quarter size, 0.5 = half size, etc.
+    const scale = 0.33;
+    const tileW = grassImg.width * scale;
+    const tileH = grassImg.height * scale;
+    for (let x = 0; x < canvas.width; x += tileW) {
+      ctx.drawImage(grassImg, x, canvas.height - tileH, tileW, tileH);
     }
+  }
+
+  // Blades overlay (keep as is)
+  blades.forEach(b => {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.angle);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -b.h);
+    ctx.lineWidth = 3.3 + Math.random() * 1.6;
+    ctx.strokeStyle = "#53b545";
+    ctx.shadowColor = "#296b23";
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
     draw();
 
     function isOnGrass(x, y) {
