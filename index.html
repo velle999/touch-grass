@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Touch Grass Simulator 2025 – Deluxe Edition</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; background: #87d887;
+      width: 100vw; height: 100vh; overflow: hidden;
+      touch-action: none; /* Prevent browser gestures */
+    }
+    #grassField {
+      display: block; margin: 0 auto;
+      background: #71c271; border-bottom: 12px solid #529f54;
+      touch-action: none; /* Prevent scrolling on touch */
+    }
+    #ui {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-family: monospace; background: #235c25cc; padding: 16px 32px; border-radius: 18px; font-size: 1.3em;
+      box-shadow: 0 4px 16px #235c2544; z-index: 3;
+      user-select: none;
+    }
+    #sarcasm {
+      margin-top: 6px; font-size: 1em; color: #eaffb6;
+      text-shadow: 1px 1px 4px #0009;
+    }
+    #sunlightBarBG {
+      width: 240px; height: 20px; background: #164e1a; border-radius: 10px; margin-top: 10px;
+      position: relative; box-shadow: 0 0 10px #afd88a44 inset;
+    }
+    #sunlightBar {
+      height: 100%; background: linear-gradient(90deg, #e6ff98, #ffee58 60%, #ffd600); border-radius: 10px;
+      transition: width 0.25s cubic-bezier(.23,1.18,.44,.93); box-shadow: 0 0 6px #ffd60088;
+    }
+    .hand {
+      position: absolute; pointer-events: none; z-index: 9;
+      width: 64px; height: 64px;
+      background: url('hand.png') no-repeat center/contain;
+      user-select: none;
+      touch-action: none;
+    }
+    #notification {
+      position: absolute; top: 32%; left: 50%; transform: translateX(-50%);
+      min-width: 340px; min-height: 90px;
+      background: #1d2429dd; color: #fff;
+      border: 2.5px solid #ffc107; border-radius: 18px;
+      font-family: monospace; font-size: 1.25em;
+      box-shadow: 0 0 36px #000b, 0 0 12px #ffec8b55;
+      display: none; z-index: 20;
+      padding: 24px 38px 18px 38px;
+      text-align: center;
+      animation: popin 0.3s cubic-bezier(.23,2,.44,.93);
+      cursor: pointer; user-select: none;
+      touch-action: manipulation;
+    }
+    @keyframes popin {
+      from { transform: translateX(-50%) scale(0.92); opacity: 0.2; }
+      to   { transform: translateX(-50%) scale(1.0); opacity: 1; }
+    }
+    body.photosynthesis #grassField {
+      filter: brightness(1.16) drop-shadow(0 0 16px #ffe077);
+      background: #fffbe4;
+      transition: filter 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="grassField" width="900" height="500"></canvas>
+  <div id="ui">
+    Grass Touched: <span id="counter">0</span>
+    <div id="sunlightBarBG">
+      <div id="sunlightBar" style="width: 0%"></div>
+    </div>
+    <div id="sarcasm"></div>
+  </div>
+  <div class="hand" id="hand"></div>
+  <div id="notification"></div>
+  <audio id="grassAudio" src="grass.mp3" preload="auto"></audio>
+  <script>
+    // --- State ---
+    const canvas = document.getElementById('grassField');
+    const ctx = canvas.getContext('2d');
+    const counterEl = document.getElementById('counter');
+    const sarcasmEl = document.getElementById('sarcasm');
+    const handEl = document.getElementById('hand');
+    const sunlightBar = document.getElementById('sunlightBar');
+    const notification = document.getElementById('notification');
+    const grassAudio = document.getElementById('grassAudio');
+    let grassTouched = 0, lastSarcasm = -1;
+
+    // --- Grass Blades ---
+    const blades = [];
+    for(let i = 0; i < 220; ++i) {
+      blades.push({
+        x: Math.random() * canvas.width,
+        y: 390 + Math.random() * 95,
+        h: 35 + Math.random() * 44,
+        angle: (Math.random() - 0.5) * 0.7
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = "#87d887";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      blades.forEach(b => {
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.angle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -b.h);
+        ctx.lineWidth = 3.3 + Math.random() * 1.6;
+        ctx.strokeStyle = "#53b545";
+        ctx.shadowColor = "#296b23";
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+    draw();
+
+    function isOnGrass(x, y) {
+      return blades.some(b => Math.abs(x - b.x) < 12 && Math.abs(y - b.y) < 22);
+    }
+
+    const sarcasmLines = [
+      "Wow, you're basically Bear Grylls.",
+      "Can you feel the nature? No? Me neither.",
+      "Achievement unlocked: Vitamin D Deficiency.",
+      "Honestly, this counts as exercise.",
+      "Somewhere, a Fitbit is confused.",
+      "Legend says the grass can cure your screen tan.",
+      "Your ancestors are... mildly impressed.",
+      "Keep going, desktop druid.",
+      "Now do it IRL. (Just kidding, don't go outside.)"
+    ];
+
+    // --- Sunlight Meter ---
+    let sunlight = 0, lastTouch = Date.now(), photosynthesis = false;
+    function updateSunlight(delta, touching) {
+      if (touching) {
+        sunlight += delta * 0.14;
+        if (sunlight > 100) sunlight = 100;
+      } else {
+        sunlight -= delta * 0.045;
+        if (sunlight < 0) sunlight = 0;
+      }
+      sunlightBar.style.width = sunlight + "%";
+      if (sunlight === 100 && !photosynthesis) {
+        photosynthesis = true;
+        document.body.classList.add('photosynthesis');
+        sarcasmEl.textContent = "PHOTOSYNTHESIS MODE: You're glowing!";
+        setTimeout(() => {
+          document.body.classList.remove('photosynthesis');
+          photosynthesis = false;
+        }, 3500);
+      }
+    }
+    setInterval(() => {
+      updateSunlight(0.9, Date.now() - lastTouch < 700);
+    }, 55);
+
+    // --- Notifications ---
+    const fakeNotifs = [
+      "Reminder: Your GPU wants you to go outside.",
+      "BREAKING: Discord outage. Go touch grass.",
+      "Instagram: 0 new likes. Grass is free.",
+      "Steam Achievement Unlocked: Contact With Flora.",
+      "Twitter: Someone is wrong. Resist the urge.",
+      "Your smart fridge is judging you.",
+      "New firmware update available: For your soul."
+    ];
+    function showNotification() {
+      if (notification.style.display === "block") return; // Don't stack
+      notification.textContent = fakeNotifs[Math.floor(Math.random() * fakeNotifs.length)] +
+        "\n\n(Tap/click to dismiss and continue your digital wellness journey.)";
+      notification.style.display = "block";
+    }
+    function maybeShowNotification() {
+      if (Math.random() < 0.17) showNotification();
+    }
+    notification.addEventListener('pointerdown', () => {
+      notification.style.display = "none";
+    });
+    setInterval(maybeShowNotification, 6000);
+
+    // --- Universal Touch/Pointer Logic ---
+    let touching = false;
+    let isPetting = false;
+
+    function updateHand(x, y) {
+      handEl.style.left = (x-32) + "px";
+      handEl.style.top = (y-32) + "px";
+    }
+    function tryTouch(x, y) {
+      if (notification.style.display === "block") return;
+      if(isOnGrass(x, y)) {
+        grassTouched++;
+        counterEl.textContent = grassTouched;
+        lastTouch = Date.now();
+        if(grassTouched % 7 === 0) {
+          let idx;
+          do { idx = Math.floor(Math.random()*sarcasmLines.length);}
+          while (idx === lastSarcasm);
+          lastSarcasm = idx;
+          sarcasmEl.textContent = sarcasmLines[idx];
+        } else {
+          sarcasmEl.textContent = "";
+        }
+        draw();
+      }
+    }
+
+    // --- Main pointer events ---
+    function pointerDownHandler(e) {
+      touching = true;
+      if (!isPetting) {
+        grassAudio.currentTime = 0;
+        grassAudio.loop = true;
+        grassAudio.play();
+        isPetting = true;
+      }
+      // Support multi-touch: use the first finger's location if available
+      let x = e.clientX, y = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].clientX; y = e.touches[0].clientY;
+      }
+      updateHand(x, y);
+      const rect = canvas.getBoundingClientRect();
+      tryTouch(x - rect.left, y - rect.top);
+      e.preventDefault();
+    }
+    function pointerMoveHandler(e) {
+      if (!touching) return;
+      let x = e.clientX, y = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].clientX; y = e.touches[0].clientY;
+      }
+      updateHand(x, y);
+      const rect = canvas.getBoundingClientRect();
+      tryTouch(x - rect.left, y - rect.top);
+      e.preventDefault();
+    }
+    function pointerUpHandler(e) {
+      touching = false;
+      if (isPetting) {
+        grassAudio.pause();
+        isPetting = false;
+      }
+      e.preventDefault();
+    }
+
+    // --- Event listeners: pointer events cover both mouse & touch ---
+    canvas.addEventListener('pointerdown', pointerDownHandler);
+    canvas.addEventListener('pointermove', pointerMoveHandler);
+    window.addEventListener('pointerup', pointerUpHandler); // Use window for robust touch end
+
+    // --- Initial hand position in the center ---
+    updateHand(window.innerWidth/2, window.innerHeight/2);
+
+    // --- Prevent context menu on long-press (mobile) ---
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- Make sure hand follows on move even if not touching ---
+    canvas.addEventListener('pointermove', e => {
+      updateHand(e.clientX, e.clientY);
+    });
+
+    // --- Responsive scaling on orientation change ---
+    window.addEventListener('resize', () => {
+      updateHand(window.innerWidth/2, window.innerHeight/2);
+    });
+  </script>
+</body>
+</html>
